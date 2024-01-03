@@ -486,17 +486,25 @@ program toy_model
   !allocate(psir_j(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i)) ; call razero( Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i, psir_j(1) )
   !allocate(psirr( Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,0:orbs%norb+orbsv%norb-1)) ; psirr=0._wp
   !--------------------------NEW　VERSION----------------------------!
-  allocate(psir(Lzd%Glr)) ; call razero(Lzd%Glr,  psir(1) )
-  allocate(psir_i(Lzd%Glr)) ; call razero(Lzd%Glr, psir_i(1))
-  allocate(psir_j(Lzd%Glr)) ; call razero(Lzd%Glr, psir_j(1) )
-  allocate(psirr(Lzd%Glr)) ; psirr=0._wp
+  allocate(psir(  Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
+  call razero( Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3),   psir(1) )
+  allocate(psir_i( Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
+  call razero(  Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3), psir_i(1) )
+  allocate(psir_j( Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
+  call razero(  Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3), psir_j(1) )
+  allocate(psirr(  Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3),0:orbs%norb+orbsv%norb-1))
+  psirr=0._wp
+  !allocate(psir(Lzd%Glr)) ; call razero(Lzd%Glr,  psir(1) )
+  !allocate(psir_i(Lzd%Glr)) ; call razero(Lzd%Glr, psir_i(1))
+  !allocate(psir_j(Lzd%Glr)) ; call razero(Lzd%Glr, psir_j(1) )
+  !allocate(psirr(Lzd%Glr)) ; psirr=0._wp
 
   ! PHIRR
   ! Spin Orbital Index
   !--------------------------OLD　VERSION----------------------------!
   !allocate(phirr( Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,0:orbs%norb*cspin+orbsv%norb-1)) ; phirr=0._wp
   !--------------------------NEW　VERSION----------------------------!
-  allocate(phirr(Lzd%Glr ,0:orbs%norb*cspin+orbsv%norb-1)) ; phirr=0._wp
+  allocate(phirr(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3) ,0:orbs%norb*cspin+orbsv%norb-1)) ; phirr=0._wp
 
 
   call local_potential_dimensions(iproc, Lzd, orbs, xc, dpcom%ngatherarr(0,1))
@@ -508,14 +516,14 @@ program toy_model
             !acell=(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/)*&
             !      (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
             !--------------------------NEW　VERSION----------------------------!
-            acell=(/Lzd%Glr/)*&
+            acell=(/Lzd%Glr%nboxi(1,1), Lzd%Glr%nboxi(1,2), Lzd%Glr%nboxi(1,3)/)*&
                   (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
 
   pkernel=pkernel_init(iproc,nproc,dict,&
       !--------------------------OLD　VERSION----------------------------!
       !dom,(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/),&
       !--------------------------NEW　VERSION----------------------------!
-      dom,(/Lzd%Glr/),&
+      dom,(/Lzd%Glr%nboxi(1,1), Lzd%Glr%nboxi(1,2), Lzd%Glr%nboxi(1,3)/),&
        (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
 
   call dict_free(dict)
@@ -524,8 +532,8 @@ program toy_model
   !nullify(pot_ion) ; allocate(pot_ion(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*dpcom%n3p)) ; pot_ion=0._gp
   !nullify(rho_ion) ; allocate(rho_ion(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*dpcom%n3p)) ; rho_ion=0._gp
   !--------------------------NEW　VERSION----------------------------!
-  nullify(pot_ion) ; allocate(pot_ion(Lzd%Glr)) ; pot_ion=0._gp
-  nullify(rho_ion) ; allocate(rho_ion(Lzd%Glr)) ; rho_ion=0._gp
+  nullify(pot_ion) ; allocate(pot_ion(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*dpcom%n3p)) ; pot_ion=0._gp
+  nullify(rho_ion) ; allocate(rho_ion(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*dpcom%n3p)) ; rho_ion=0._gp
 
   write(124,*) " call createIonicPotential"
   call createIonicPotential(iproc,(iproc==0),atoms, atoms%astruct%rxyz, inputs%elecfield, dpcom, pkernel, pot_ion, rho_ion, &
@@ -1077,8 +1085,8 @@ program toy_model
     !allocate(rhopq(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i))
     !allocate(rhors(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i))
     !--------------------------NEW　VERSION----------------------------!
-    allocate(rhopq(Lzd%Glr))
-    allocate(rhors(Lzd%Glr))
+    allocate(rhopq(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
+    allocate(rhors(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
     open(0513,file="hpqrs.inp")
     do ihpqrs=1,nhpqrs
       read(0513,*) ip,iq,ir,is
