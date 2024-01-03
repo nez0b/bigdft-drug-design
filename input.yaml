@@ -1,0 +1,9 @@
+ dft:
+   hgrids: 0.3
+   rmult: [5.0, 8.0]
+   ixc: 11
+   qcharge: 0
+   norbv: 6
+   nvirt: 3
+ output:
+   orbitals: text
