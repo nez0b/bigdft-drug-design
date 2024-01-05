@@ -7,6 +7,7 @@ The following procedure has been tested on ubuntu machines, and ubuntu-WSL2
 Download BigDFT source code:
 ```bash
 git clone https://gitlab.com/l_sim/bigdft-suite
+git checkout 1.9.4 # switch to stable version
 ```
 
 Dependencies:
