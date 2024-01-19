@@ -12,7 +12,7 @@ git checkout 1.9.4 # switch to stable version
 
 Dependencies:
 ```bash
-sudo apt-get install gfortran cmake automake #fortran compiler, cmake
+sudo apt-get install gfortran cmake autoconf pkg-config #fortran compiler, cmake
 sudo apt-get install libblas-dev liblapack-dev #blas and lapack
 sudo apt-get install openmpi-bin openmpi-common libopenmpi-dev # open-mpi
 ```
