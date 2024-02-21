@@ -147,11 +147,14 @@
 !===============================!
 
 program toy_model
-  use Poisson_Solver, except_dp => dp, except_gp => gp
+  use Poisson_Solver!, except_dp => dp, except_gp => gp
   use BigDFT_API
   ! -----newly added:
-  use mpi
+  use io
+  use mpif_module
   use module_bigdft_mpi
+  !use mpi
+  !use wrapper_MPI
   !--------------------
   use bigdft_run
   use dynamic_memory
@@ -165,7 +168,7 @@ program toy_model
   !-----------------
   use module_atoms
   use module_dpbox,       only: denspot_distribution,dpbox_free,dpbox_set
-  use rhopotential,       !only: full_local_potential
+  use rhopotential,       only: full_local_potential
   use locregs_init,       only: lr_set
   use locreg_operations 
   use communications_base,  only: deallocate_comms
@@ -184,7 +187,8 @@ program toy_model
   use dictionaries
   use at_domain, domain_renamed => domain !, only: domain, domain_new
   use numerics, only: onehalf,pi
-
+  use f_refcnts
+  
   implicit none
   type(input_variables)        :: inputs
   type(atoms_data)             :: atoms
@@ -206,19 +210,23 @@ program toy_model
   type(atomic_proj_matrix)     :: prj
   type(dictionary), pointer :: user_inputs, options, dict
   type(domain_renamed) :: dom
+  type(f_reference_counter) :: pot_ref_count
 
   logical  :: dosome, alive, init_projectors_completely
 ! logical  :: paw = .false.
-  integer, parameter :: dp = 8
-  integer, parameter :: gp = 8
-  integer, parameter :: wp = 8
+! integer, parameter :: dp=8
+! integer, parameter :: gp=8
+  integer, parameter :: wp=8
   real(dp) :: nrm, epot_sum
   real(dp) :: psoffset, ekin, ekin_sum
   real(gp), dimension(3)            :: shift
   real(wp), dimension(:),   pointer :: w
   real(wp), dimension(:),   pointer :: psi, psiv, psir, psir_i,psir_j
-  real(dp), dimension(:),   pointer :: rhor, pot_ion, potential,rho_ion
+  real(dp), dimension(:),   pointer :: rhor,rho_ion
+  real(wp), dimension(:),   allocatable :: pot_ion
+  real(wp), dimension(:),   pointer :: potential
   real(wp), dimension(:)  , pointer :: hpsi_ptr
+  real(gp), dimension(:,:), pointer :: rxyz
   real(gp), dimension(:,:), pointer :: rxyz_old
   real(wp), dimension(:,:), pointer :: ovrlp
   real(dp), dimension(:,:), pointer :: rho_p => null() !needs to be nullified
@@ -278,6 +286,9 @@ program toy_model
   GPU%OCLconv = .false.
 
   call system_properties(iproc,nproc,inputs,atoms,orbs)
+  write(*,*) "========orbs==============="
+  write(*,*) orbs%npsidim_orbs
+
   Lzd = default_Lzd() ; Lzd%hgrids=(/ inputs%hx, inputs%hy, inputs%hz /)
   call lr_set(Lzd%Glr, iproc, GPU%OCLconv, .true., inputs%crmult, inputs%frmult, &
               Lzd%hgrids,atoms%astruct%rxyz,atoms,.true.,.false.)
@@ -303,19 +314,38 @@ program toy_model
   allocate(psiv( 2*inputs%norbv * (Lzd%Glr%wfd%nvctr_c + 7*Lzd%Glr%wfd%nvctr_f)+1 )) ; psiv=0._gp
   allocate(rxyz_old(3, atoms%astruct%nat)) ; rxyz_old=0._gp
 
-  !--------------------------------------------------------------------!
+  !------------------i--------------------------------------------------!
   ! Read occupied state wavefunctions from disk and store them in psi. !
   ! orbs%norb - number of occupied orbitals                            !
   !--------------------------------------------------------------------!
   call check_linear_and_create_Lzd(iproc,nproc,inputs%linear,Lzd,atoms,orbs,inputs%nspin,atoms%astruct%rxyz)
+  call system('echo "========orbs====-3==========="')
+  call readmywaves(iproc,trim(inputs%dir_output) // "wavefunction", &
+  WF_FORMAT_PLAIN,orbs,lzd%glr,atoms,rxyz_old,atoms%astruct%rxyz,psi)
+  call system('echo "========orbs====-2==========="')
   !--------------------------------------------------------------------!
   !--------------------------OLD　VERSION----------------------------!
   !call readmywaves(iproc, "data/wavefunction", WF_FORMAT_PLAIN, orbs, Lzd%Glr%d%n1, Lzd%Glr%d%n2, Lzd%Glr%d%n3, &
   !                 inputs%hx, inputs%hy, inputs%hz, atoms, rxyz_old, atoms%astruct%rxyz, Lzd%Glr%wfd, psi)
 
   !--------------------------NEW　VERSION   MOD by PJW-----------------!
-  call readmywaves(iproc, "data/wavefunction", WF_FORMAT_PLAIN, orbs, Lzd%Glr, &
-                   inputs%hx, inputs%hy, inputs%hz, atoms, rxyz_old, atoms%astruct%rxyz, Lzd%Glr%wfd, psi)
+
+ ! if (paw%usepaw) then
+ !    call readmywaves(trim(in%dir_output) // "wavefunction", &
+ !           orbs,lzd%glr,atoms,rxyz_old,rxyz,psi,pawrhoij=paw%pawrhoij)
+     !call readmywaves( "data/wavefunction", orbs,lzd%glr,atoms,rxyz_old,rxyz,psi,pawrhoij=paw%pawrhoij)
+!     call input_wf_disk_paw(iproc, nproc, atoms, GPU, Lzd, orbs, psi, denspot, nlpsp, paw)
+!  else
+     !call readmywaves(trim(in%dir_output) // "wavefunction",orbs,lzd%glr,atoms,rxyz_old,rxyz,psi)
+     !write(*,*)'======================', iproc!WF_FORMAT_PLAIN == 1
+     !call readmywaves(trim(in%dir_output) // "wavefunction", orbs,lzd%glr,atoms,rxyz_old,rxyz,psi)
+     !call readmywaves("wavefunction",orbs,lzd%glr,atoms,rxyz_old,rxyz,psi)
+     
+    
+ !    call readmywaves(iproc,"data/wavefunction",WF_FORMAT_PLAIN,orbs,lzd%glr,atoms,rxyz_old,atoms%astruct%rxyz,psi)
+ ! end if
+! call readmywaves(iproc, "data/wavefunction", WF_FORMAT_PLAIN, orbs, Lzd%Glr, &
+!                  inputs%hx, inputs%hy, inputs%hz, atoms, rxyz_old, atoms%astruct%rxyz, Lzd%Glr%wfd, psi)
   !--------------------------------------------------------------------!
   if(nproc>1) call fmpi_allreduce(orbs%eval(1), orbs%norb*orbs%nkpts, op=FMPI_SUM)
 ! do i=1,orbs%norb ; write(1000+i,'("# orb: ",i4)') i ; write(1000+i,'(f20.12)') psi ; end do
@@ -335,15 +365,17 @@ program toy_model
   ! call readmywaves(iproc, "data/virtuals",     WF_FORMAT_PLAIN, orbsv, Lzd%Glr%d%n1, Lzd%Glr%d%n2, Lzd%Glr%d%n3, &
   !                 inputs%hx, inputs%hy, inputs%hz, atoms, rxyz_old, atoms%astruct%rxyz, Lzd%Glr%wfd, psiv)
   !--------------------------NEW　VERSION----------------------------!
-  call readmywaves(iproc, "data/virtuals",     WF_FORMAT_PLAIN, orbsv, Lzd%Glr, &
-                   inputs%hx, inputs%hy, inputs%hz, atoms, rxyz_old, atoms%astruct%rxyz, Lzd%Glr%wfd, psiv)
-
+  call system('echo "========orbs====-1==========="')
+  call readmywaves(iproc, "data/virtuals",WF_FORMAT_PLAIN, orbsv, Lzd%Glr, atoms, rxyz_old, atoms%astruct%rxyz,psiv)
+  call system('echo "========orbs====0==========="')
   if(nproc>1) call fmpi_allreduce(orbsv%eval(1), orbsv%norb*orbsv%nkpts, op=FMPI_SUM)
 ! do i=1,mspin*inputs%norbv ; write(2000+i,'("# orb: ",i4)') i ;  write(2000+i,'(f20.12)') psiv ; end do
 
   orbdimocc = (Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)*orbs%norb
   orbdimvir = (Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)*orbsv%norb
 
+  call system('echo "========orbs====1==========="')
+  write(*,*) orbs%npsidim_orbs
 !-------------------------------------------------------------------------------------------------------------------------------------
 !=====================================================================================================================================
 !-------------------------------------------------------------------------------------------------------------------------------------
@@ -363,11 +395,12 @@ program toy_model
     !------------------------------------------------------
     ! loop on the localisation regions (occupied orbitals)
     !------------------------------------------------------
-    allocate(tpsi(orbdimocc)) ; tpsi = 0._dp
+    allocate(tpsi(orbdimocc+1)) ; tpsi = 0._dp
     write(124,20) orbs%norb, orbs%nspinor, mspin, orbdimocc, Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f
     !--------------------------OLD　VERSION----------------------------!
     !call initialize_work_arrays_locham(Lzd%nlr,Lzd%Llr,orbs%nspinor,.true.,wrk_lh)
     !--------------------------NEW　VERSION----------------------------!
+
     call initialize_work_arrays_locham(Lzd%nlr,Lzd%Llr,orbs%nspinor,wrk_lh)
     ekin = 0.d0 ; ekin_sum = 0.0_gp 
     loop_lr_kin: do ilr=1,Lzd%nlr
@@ -387,7 +420,14 @@ program toy_model
           ispsi = ispsi + (Lzd%Llr(ilr_orb)%wfd%nvctr_c+7*Lzd%Llr(ilr_orb)%wfd%nvctr_f)*orbs%nspinor
           cycle loop_orbs
         end if
-        call psi_to_tpsi(Lzd%hgrids, orbs%kpts(1,orbs%iokpt(iorb)),orbs%nspinor,Lzd%Llr(ilr), psi(ispsi), wrk_lh, tpsi(ispsi), ekin)
+!+++++++++++++error++++++++++++here+++++++++++++++++++
+        !call psi_to_tpsi(Lzd%hgrids, orbs%kpts(1,orbs%iokpt(iorb)),orbs%nspinor,Lzd%Llr(ilr), psi(ispsi), wrk_lh, tpsi(ispsi), ekin)
+        
+  !++++++++error randomly happen here+++++++++++++++++++
+        write(*,*)"debug----------bg",iorb,"/",orbs%norb
+        call psi_to_tpsi(orbs%kpts(1,orbs%iokpt(iorb)),orbs%nspinor,Lzd%Llr(ilr), psi(ispsi), wrk_lh,tpsi(ispsi), ekin)
+        write(*,*) "debug---------ed"
+
         ekin_sum = ekin_sum + orbs%kwgts(orbs%iokpt(iorb))*orbs%occup(iorb+orbs%isorb)*ekin
         ektmp1 = sum(psi(1:ispsi)*tpsi(1:ispsi))
         ispsi  = ispsi + (Lzd%Llr(ilr)%wfd%nvctr_c+7*Lzd%Llr(ilr)%wfd%nvctr_f)*orbs%nspinor
@@ -423,7 +463,7 @@ program toy_model
       ispsi = 1
       loop_orbsv: do iorb=1,mspin*inputs%norbv
         indwvl_i(iorb+orbs%norb) = ispsi
-        ilr_orb = orbs%inwhichlocreg(iorb+orbs%isorb)
+        ! ilr_orb = orbs%inwhichlocreg(iorb+orbs%isorb)
         ilr_orb = 1
         if (ilr_orb /= ilr) then
           ispsi = ispsi + (Lzd%Llr(ilr_orb)%wfd%nvctr_c+7*Lzd%Llr(ilr_orb)%wfd%nvctr_f)*orbs%nspinor
@@ -432,7 +472,7 @@ program toy_model
         !--------------------------OLD　VERSION----------------------------!
         ! call psi_to_tpsi(Lzd%hgrids, orbs%kpts(1,orbs%iokpt(iorb)),orbs%nspinor,Lzd%Llr(ilr), psiv(ispsi), wrk_lh, tpsi(ispsi), ekin)
         !--------------------------NEW　VERSION----------------------------!
-        call psi_to_tpsi(Lzd%hgrids, orbs%kpts(1,orbs%iokpt(iorb)),orbs%nspinor, Lzd%Glr, psiv(ispsi), wrk_lh, tpsi(ispsi), ekin)
+        call psi_to_tpsi(orbsv%kpts(1,orbsv%iokpt(iorb)),orbsv%nspinor, Lzd%Llr(ilr), psiv(ispsi), wrk_lh, tpsi(ispsi), ekin)
         ekin_sum = ekin_sum + ekin
         ektmp1 = sum(psiv(1:ispsi)*tpsi(1:ispsi))
         ispsi  = ispsi + (Lzd%Llr(ilr)%wfd%nvctr_c+7*Lzd%Llr(ilr)%wfd%nvctr_f)*orbs%nspinor
@@ -443,10 +483,11 @@ program toy_model
     end do loop_lr_kinv
     write(124,*) " virtual  orbitals ... DONE"
     write(124,'("total kinetic energy = ",f15.8)') ekin_sum ; write(124,*)
+    write(*,*) "========orbs======2========="
+    write(*,*) orbs%npsidim_orbs
     tpsi_v=tpsi
     call deallocate_work_arrays_locham(wrk_lh)
     deallocate(tpsi)
-
   20 format("   # occupied orbitals:",i3,", nspinor:",i3,", mspin: ",i4,", psi_dim:",3i9)
   21 format("   # virtual  orbitals:",i3,", nspinor:",i3,", mspin: ",i4,", psi_dim:",3i9)
   22 format(" orbital ",i3,"  ekin = ",f15.8,2x,"index of wavelet:",2i10)
@@ -480,71 +521,52 @@ program toy_model
   write(124,*) " energy of the LOCAL potential, unit in Hartree "
   write(124,*) "       -- psir(i)*potential*psir(j) --       "
   write(124,*) "================================================"
-  !--------------------------OLD　VERSION----------------------------!
-  !allocate(psir(  Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i)) ; call razero( Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,   psir(1) )
-  !allocate(psir_i(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i)) ; call razero( Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i, psir_i(1) )
-  !allocate(psir_j(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i)) ; call razero( Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i, psir_j(1) )
-  !allocate(psirr( Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,0:orbs%norb+orbsv%norb-1)) ; psirr=0._wp
-  !--------------------------NEW　VERSION----------------------------!
-  allocate(psir(  Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
-  call razero( Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3),   psir(1) )
-  allocate(psir_i( Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
-  call razero(  Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3), psir_i(1) )
-  allocate(psir_j( Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
-  call razero(  Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3), psir_j(1) )
-  allocate(psirr(  Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3),0:orbs%norb+orbsv%norb-1))
-  psirr=0._wp
-  !allocate(psir(Lzd%Glr)) ; call razero(Lzd%Glr,  psir(1) )
-  !allocate(psir_i(Lzd%Glr)) ; call razero(Lzd%Glr, psir_i(1))
-  !allocate(psir_j(Lzd%Glr)) ; call razero(Lzd%Glr, psir_j(1) )
-  !allocate(psirr(Lzd%Glr)) ; psirr=0._wp
+  
+  allocate(psir(  Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)))
+  allocate(psir_i( Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)))
+  allocate(psir_j( Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)))
+  allocate(psirr(  Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3),0:orbs%norb+orbsv%norb-1));psirr=0._wp
+ 
+ 
+  allocate(phirr(Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3) ,0:orbs%norb*cspin+orbsv%norb-1)) ; phirr=0._wp
 
-  ! PHIRR
-  ! Spin Orbital Index
-  !--------------------------OLD　VERSION----------------------------!
-  !allocate(phirr( Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i,0:orbs%norb*cspin+orbsv%norb-1)) ; phirr=0._wp
-  !--------------------------NEW　VERSION----------------------------!
-  allocate(phirr(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3) ,0:orbs%norb*cspin+orbsv%norb-1)) ; phirr=0._wp
-
-
-  call local_potential_dimensions(iproc, Lzd, orbs, xc, dpcom%ngatherarr(0,1))
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+ ! call local_potential_dimensions(Lzd, orbs, dpcom%ngatherarr(0,1))
   dict => dict_new()
 
+  call system('echo "03"')
   dom=domain_new(units=ATOMIC_UNITS,bc=geocode_to_bc_enum(domain_geocode(atoms%astruct%dom)),&
             alpha_bc=onehalf*pi,beta_ac=onehalf*pi,gamma_ab=onehalf*pi,&
-            !--------------------------OLD　VERSION----------------------------!
-            !acell=(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/)*&
-            !      (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
-            !--------------------------NEW　VERSION----------------------------!
-            acell=(/Lzd%Glr%nboxi(1,1), Lzd%Glr%nboxi(1,2), Lzd%Glr%nboxi(1,3)/)*&
+            acell=(/Lzd%Glr%nboxi(2,1), Lzd%Glr%nboxi(2,2), Lzd%Glr%nboxi(2,3)/)*&
                   (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
 
   pkernel=pkernel_init(iproc,nproc,dict,&
-      !--------------------------OLD　VERSION----------------------------!
-      !dom,(/Lzd%Glr%d%n1i,Lzd%Glr%d%n2i,Lzd%Glr%d%n3i/),&
-      !--------------------------NEW　VERSION----------------------------!
-      dom,(/Lzd%Glr%nboxi(1,1), Lzd%Glr%nboxi(1,2), Lzd%Glr%nboxi(1,3)/),&
+      dom,(/Lzd%Glr%nboxi(2,1), Lzd%Glr%nboxi(2,2), Lzd%Glr%nboxi(2,3)/),&
        (/inputs%hx / 2._gp,inputs%hy / 2._gp,inputs%hz / 2._gp/))
 
+  call system('echo "04"')
   call dict_free(dict)
   call pkernel_set(pkernel,verbose=.false.)
-  !--------------------------OLD　VERSION----------------------------!
-  !nullify(pot_ion) ; allocate(pot_ion(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*dpcom%n3p)) ; pot_ion=0._gp
-  !nullify(rho_ion) ; allocate(rho_ion(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*dpcom%n3p)) ; rho_ion=0._gp
-  !--------------------------NEW　VERSION----------------------------!
-  nullify(pot_ion) ; allocate(pot_ion(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*dpcom%n3p)) ; pot_ion=0._gp
-  nullify(rho_ion) ; allocate(rho_ion(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*dpcom%n3p)) ; rho_ion=0._gp
-
+  !nullify(pot_ion) ;
+  allocate(pot_ion(Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*dpcom%n3p)) ; pot_ion=0._gp
+  nullify(rho_ion) ; allocate(rho_ion(Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*dpcom%n3p)) ; rho_ion=0._gp
   write(124,*) " call createIonicPotential"
-  call createIonicPotential(iproc,(iproc==0),atoms, atoms%astruct%rxyz, inputs%elecfield, dpcom, pkernel, pot_ion, rho_ion, &
-                             psoffset)
-
+  
+  call system('echo "05"')
+  call createIonicPotential(iproc, (iproc==0),atoms, atoms%astruct%rxyz,&
+   inputs%elecfield, dpcom, pkernel, pot_ion, rho_ion, psoffset)
+  call system('echo "06"')
+  
   write(124,*) " call full_local_potential"
-  call full_local_potential(iproc,nproc, orbs,Lzd, 0,dpcom,xc, pot_ion, potential)       ! allocate the potential in the full box
-! write(566,'(f15.8)') potential
+ ! allocate the potential in the full box
+  call full_local_potential(iproc,nproc,orbs,Lzd,dpcom,xc,pot_ion,potential,pot_ref_count)
 
   write(124,*) " call initialize_work_arrays_sumrho"
-  call initialize_work_arrays_sumrho(    Lzd%Glr , .true., wisf)
+
+  write(*,*) '????????????begin?????????????????'
+  call initialize_work_arrays_sumrho(Lzd%Glr , .true., wisf)
+
   epot_sum = 0._dp
   do i=1,orbtot
     do j=1,orbtot
@@ -562,10 +584,7 @@ program toy_model
         if(i .eq. 1) psirr(:,j-1) = psir_j(:)
       end if
 
-      !--------------------------OLD　VERSION----------------------------!
-      !do k=1,Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i
-      !--------------------------NEW　VERSION----------------------------!
-      do k=1, ilr
+      do k=1, Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)
          epot_sum = epot_sum + psir_i(k)*potential(k)*psir_j(k)
       end do
     ! write(124,"(f19.9)",advance = "NO") epot_sum  
@@ -574,13 +593,16 @@ program toy_model
     end do
   ! write(124,"(A)") " "
   end do ! write(124,*)
-
+  write(*,*) '???????????end?????????????????????????????????'
 
   ! /////////////////////////////////////////////////////////////////////////////////////////////////
   ! /////////////////////////////////////////////////////////////////////////////////////////////////
   ! /////////////////////////////////////////////////////////////////////////////////////////////////
   ! Occupied Orbital
   ! Spin Orbital Notation
+
+  write(*,*) "========orbs====3==========="
+  write(*,*) orbs%npsidim_orbs
   do i=1,orbs%norb
     if(orbs%nspin .eq. 1) then
       call daub_to_isf(Lzd%Glr,wisf,psi((i-1)*(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)+1) ,psir_i)
@@ -643,7 +665,13 @@ program toy_model
   ! /////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-  call free_full_potential(dpcom%mpi_env%nproc,0,xc,potential)
+ !call free_full_potential(dpcom%mpi_env%nproc,0,xc,potential)
+   if (f_associated(pot_ref_count)) then
+     call f_free_ptr(potential)
+     call f_ref_free(pot_ref_count)
+   end if
+   nullify(potential)
+
   if (nproc>1) call fmpi_allreduce(epot_sum,1,op=FMPI_SUM)
   deallocate(pot_ion, rho_ion, psir)
   call deallocate_work_arrays_sumrho(wisf)
@@ -668,7 +696,8 @@ program toy_model
     !  occupied orbitals
     !-------------------
     allocate(hpsi(orbdimocc)) 
-    hpsi_ptr => ob_ket_map(hpsi,psi_it) ; if(orbdimocc > 0) call f_zero(orbdimocc,hpsi(1))
+    hpsi_ptr => ob_ket_map(hpsi,psi_it) 
+    if(orbdimocc > 0) call f_zero(hpsi(1),orbdimocc)
 
     init_projectors_completely = .true. ; dry_run = 0 ; nwarnings = 0
 
@@ -709,8 +738,10 @@ program toy_model
         call DFT_PSP_projectors_iter_new(psp_it, nlpsp)
         loop_proj: do while (DFT_PSP_projectors_iter_next(psp_it, ilr=psi_it%ilr, lr=psi_it%lr, glr=Lzd%glr))
           call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, Lzd%Glr)
-          loop_psi_kpt: do while(ket_next(psi_it, ikpt=psi_it%ikpt, ilr=psi_it%ilr))
-            call DFT_PSP_projectors_iter_apply(psp_it, psi_it, atoms, eproj, hpsi=hpsi, paw=paw)
+          loop_psi_kpt: do while(ket_next(psi_it, ikpt=psi_it%ikpt, ilr=psi_it%ilr))          
+            call system('echo "07"')
+            call DFT_PSP_projectors_iter_apply(psp_it, psi_it, atoms, eproj, hpsi=hpsi)          
+            call system('echo "08"')
 
             ! Number of Projector Considered for each Atomic Species
             nmproj=nlpsp%projs(iproj)%mproj
@@ -762,8 +793,13 @@ program toy_model
     !-------------------
     !  virtual orbitals
     !-------------------
+    !---- PJW: fixed hpsi/psi_it mapping mismatch-----comment out below line 816-817ish
+    call orbital_basis_associate(psi_ob, orbs=orbsv, phis_wvl=psiv, Lzd=Lzd, id='nonlocalham')
+    psi_it = orbital_basis_iterator(psi_ob)
+    !-----------------------------------------------------------------
     allocate(hpsi(orbdimvir))
-    hpsi_ptr => ob_ket_map(hpsi,psi_it) ; if(orbdimvir > 0) call f_zero(orbdimvir,hpsi(1))
+    hpsi_ptr => ob_ket_map(hpsi,psi_it) ;
+    if(orbdimvir > 0) call f_zero(hpsi(1),orbdimvir)
 
 
     ! nn=1:orbsv%norb
@@ -773,17 +809,22 @@ program toy_model
     ! Projector Index
     nnproj=orbs%norb*cspin+orbsv%norb
 
+    write(*,*) "========orbs======4========="
+    write(*,*) orbs%npsidim_orbs
     write(6,*)
 
-    call orbital_basis_associate(psi_ob, orbs=orbsv, phis_wvl=psiv, Lzd=Lzd, id='nonlocalham')
-    psi_it = orbital_basis_iterator(psi_ob)
+    !call orbital_basis_associate(psi_ob, orbs=orbsv, phis_wvl=psiv, Lzd=Lzd, id='nonlocalham')
+    !psi_it = orbital_basis_iterator(psi_ob)
     loop_kpt_v: do while(ket_next_kpt(psi_it))
       loop_lr_v: do while(ket_next_locreg(psi_it, ikpt=psi_it%ikpt))
         call DFT_PSP_projectors_iter_new(psp_it, nlpsp)
         loop_proj_v: do while (DFT_PSP_projectors_iter_next(psp_it, ilr=psi_it%ilr, lr=psi_it%lr, glr=Lzd%glr))
           call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, Lzd%Glr)
-          loop_psi_kpt_v: do while(ket_next(psi_it, ikpt=psi_it%ikpt, ilr=psi_it%ilr))
-            call DFT_PSP_projectors_iter_apply(psp_it, psi_it, atoms, eproj, hpsi=hpsi, paw=paw)
+          loop_psi_kpt_v: do while(ket_next(psi_it, ikpt=psi_it%ikpt, ilr=psi_it%ilr))          
+            call system('echo "09"')
+            call DFT_PSP_projectors_iter_apply(psp_it, psi_it, atoms, eproj, hpsi=hpsi)          
+            call system('echo "10"')
+
 
 
             ! Number of Projector Considered for each Atomic Species
@@ -842,7 +883,6 @@ program toy_model
 
     ! Close File
     close(124)
-    close(6)
 !-------------------------------------------------------------------------------------------------------------------------------------
 
   ! Pseudopotential nonlocal part  
@@ -896,7 +936,8 @@ program toy_model
 !-------------------------------------------------------------------------------------------------------------------------------------
 !=====================================================================================================================================
 !-------------------------------------------------------------------------------------------------------------------------------------
-
+  write(*,*) "========orbs====5==========="
+  write(*,*) orbs%npsidim_orbs
   !----------------
   !   data output 
   !----------------
@@ -911,7 +952,8 @@ program toy_model
   write(6,'("                          orbs%npsidim_orbs : ", i8)') orbs%npsidim_orbs
   write(6,'(" dimension of occupied orbitals (orbdimocc) : ", i8)') orbdimocc
   write(6,'(" dimension of  virtual orbitals (orbdimvir) : ", i8)') orbdimvir
-
+  
+  
   allocate( output1(0:orbtot-1,0:orbtot-1) ) ; output1=0._dp
   allocate( output2(0:orbtot-1,0:orbtot-1) ) ; output2=0._dp
   allocate( output3(0:orbtot-1,0:orbtot-1) ) ; output3=0._dp
@@ -958,35 +1000,35 @@ program toy_model
 
   else
 
-    do i=1,orbtot ; do j=1,orbtot
-     output1(i,j) =      E_kin(i,j)
-     output2(i,j) =    E_local(i,j)
-     output3(i,j) = E_nonlocal(i,j)
+    do i=0,orbtot-1 ; do j=0,orbtot-1
+     output1(i,j) =      E_kin(i+1,j+1)
+     output2(i,j) =    E_local(i+1,j+1)
+     output3(i,j) = E_nonlocal(i+1,j+1)
     end do ; end do
    
     write(6,*)  
     write(6,*) ; write(6,*) " =====  kinetic energy: psi(i)*tpsi(j) ====="
-    do j=1,orbtot; do i=1,orbtot; write(6,1,advance="NO") output1(i,j); if(i .eq. orbs%norb) write(6,"(A)",advance="NO") "  " &
+    do j=0,orbtot-1; do i=0,orbtot-1; write(6,1,advance="NO") output1(i,j); if(i .eq. orbs%norb) write(6,"(A)",advance="NO") "  " &
       ; end do
      write(6,"(A)") " " ; if(j .eq. orbs%norb) write(6,"(A)") "  " ; end do 
 
     write(6,*) ; write(6,*) " =====  local potential: psir(i)*potential(ij)*psir(j)  ===== "
-    do j=1,orbtot; do i=1,orbtot; write(6,1,advance="NO") output2(i,j); if(i .eq. orbs%norb) write(6,"(A)",advance="NO") "  " &
+    do j=0,orbtot-1; do i=0,orbtot-1; write(6,1,advance="NO") output2(i,j); if(i .eq. orbs%norb) write(6,"(A)",advance="NO") "  " &
       ; end do
       write(6,"(A)") " " ; if(j .eq. orbs%norb) write(6,"(A)") "  " ; end do
 
     write(6,*) ; write(6,*) " =====  nonlocal potential: psir(i)*hpsir(j)  ===== "
-    do j=1,orbtot; do i=1,orbtot; write(6,1,advance="NO") output3(i,j); if(i .eq. orbs%norb) write(6,"(A)",advance="NO") "  " &
+    do j=0,orbtot-1; do i=0,orbtot-1; write(6,1,advance="NO") output3(i,j); if(i .eq. orbs%norb) write(6,"(A)",advance="NO") "  " &
       ; end do
       write(6,"(A)") " " ; if(j .eq. orbs%norb) write(6,"(A)") "  " ; end do
 
     write(6,*) ; write(6,*) " =====  hpq:  sum(kinetic, V_local, V_nonlocal)  ===== "
-    do j=1,orbtot; do i=1,orbtot; write(6,1,advance="NO") output1(i,j) + output2(i,j) + output3(i,j)  
+    do j=0,orbtot-1; do i=0,orbtot-1; write(6,1,advance="NO") output1(i,j) + output2(i,j) + output3(i,j)  
       if(i .eq. orbs%norb) write(6,"(A)",advance="NO") "  "
       end do ; write(6,"(A)") " " ; if(j .eq. orbs%norb) write(6,"(A)") "  " ; end do
     
   end if
-
+  close(6)
 ! ------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -1032,14 +1074,8 @@ program toy_model
       ipt=ip
       iqt=iq
       if(orbs%nspin .eq. 1) then
-        ! WARNING: Notation
-        ipt=ip
-        iqt=iq
-        ip=iqt
-        iq=ipt
-        ! nspin1 index
-        ip=int(ip/2)+1 
-        iq=int(iq/2)+1
+        ip=int(ip/2)
+        iq=int(iq/2)
       else if(orbs%nspin .eq. 2) then
         ip=ip
         iq=iq
@@ -1067,7 +1103,7 @@ program toy_model
 ! PSolver - Calculate hpqrs
 
 !-------------------------------------------------------------------------------------------------------------------------------------
-    open(6,file="toy_model.out")
+    !open(6,file="toy_model_1.out")
     ! Electrostat_Solver should be called under open( ,file);
     ! otherwise, there is a additional information aboule PSolver printed out on the screen
 
@@ -1081,12 +1117,9 @@ program toy_model
       nhpqrs=nhpqrs+1
     end do
     close(0513)
-    !--------------------------OLD　VERSION----------------------------!
-    !allocate(rhopq(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i))
-    !allocate(rhors(Lzd%Glr%d%n1i*Lzd%Glr%d%n2i*Lzd%Glr%d%n3i))
-    !--------------------------NEW　VERSION----------------------------!
-    allocate(rhopq(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
-    allocate(rhors(Lzd%Glr%nboxi(1,1)*Lzd%Glr%nboxi(1,2)*Lzd%Glr%nboxi(1,3)))
+    
+    allocate(rhopq(Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)))
+    allocate(rhors(Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)))
     open(0513,file="hpqrs.inp")
     do ihpqrs=1,nhpqrs
       read(0513,*) ip,iq,ir,is
@@ -1095,8 +1128,11 @@ program toy_model
       ! Interleaved Spin Format
       rhopq(:)=phirr(:,ip)*phirr(:,iq)
       rhors(:)=phirr(:,ir)*phirr(:,is)
-      rhors(:)=rhors(:)/pkernel%mesh%volume_element 
+      rhors(:)=rhors(:)/pkernel%mesh%volume_element
+
+      write(*,*) "=================hererere===begin=========================="
       call Electrostatic_Solver(pkernel,rhors)
+      write(*,*) "=================hererere===end=========================="
       hpqrs=sum(rhopq(:)*rhors(:))
 
       write( * ,'(4i4,f19.12)') ip,iq,ir,is, hpqrs
@@ -1191,5 +1227,3 @@ implicit none
   end if
 return
 end
-
-
