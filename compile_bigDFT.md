@@ -26,3 +26,16 @@ cd build
 #python ../Installer.py autogen
 python ../Installer.py build -f ../rcfiles/ubuntu_MPI.rc
 ```
+
+
+## GPU Version
+Enable Intel MKL and MPI Libraries
+```bash
+source /aracbox/intel/bin/compilervars.sh
+source /aracbox/intel/compilers_and_libraries_2019.3.199/linux/mpi/intel64/bin/mpivars.sh
+# check whether mpiifort $MKLROOT exist
+which mpiifort
+echo $MKLROOT
+```
+
+
