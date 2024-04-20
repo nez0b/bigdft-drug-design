@@ -1,0 +1,48 @@
+
+MKL=/share/apps/intel2021-base/mkl/2021.4.0
+
+#BigDFT=/home/ntuqcomputing/yes/envs/qchem/bin/bigdft
+#BigDFT=/mnt/c/Users/NTUQ-RA/Documents/pojen/Qchem/bigdft-suite/build/install/
+BigDFT=/mnt/c/Users/NTUQ-RA/Documents/pojen/Qchem/bigdft-suite/build-cuda/install/
+
+INCLUDE=-I${BigDFT}/include 
+#-I${BigDFT}/bigdft/includes \
+#-I${BigDFT}/chess/includes \
+#-I${BigDFT}/futile/includes 
+#INCLUDE= -I/mnt/c/Users/NTUQ-RA/Documents/pojen/Qchem/bigdft-suite/build/install/include \
+#		-I/mnt/c/Users/NTUQ-RA/Documents/pojen/Qchem/bigdft-suite/build/install/include/futile
+
+LIBRARY=-L${BigDFT}/lib -ldl -lrt -lstdc++ -lbigdft-1 -labinit -lxcf90 -lxc -lGaIn -lPSolver-1 -lCheSS-1 -lfutile-1 \
+		-latlab-1 -lyaml -ldicts -lNTPoly -lorbs -lfmalloc-1  -llapack -lblas \
+		-L/usr/local/cuda/lib64 -lcudart -lcublas -lcufft 
+#-L${BigDFT}/bigdft/lib -lbigdft-1 \
+#-L${BigDFT}/chess/lib -lCheSS-1 
+#-L${BigDFT}/futile/lib -lfutile-1 \
+
+FC=mpifort
+CC=gcc
+#FCFLAGS=-O2 -fopenmp 
+#FCFLAGS=-O2 -Wno-error -fbounds-check -fbacktrace -ffpe-trap=invalid,zero,overflow -fopenmp -m64 -g -Wl,--no-as-needed 
+FCFLAGS=-g -O2 -fopenmp -fbounds-check -fbacktrace -Wl,--no-as-needed
+#FCLIBS = -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi -lgfortran -lm -lgomp -lquadmath -lpthread
+
+#--with-ext-linalg=-llapack -lopenblas 
+#LDFLAGS=-L/mnt/c/Users/NTUQ-RA/Documents/pojen/Qchem/bigdft-suite/build/install/lib  
+#C_INCLUDE_PATH=/mnt/c/Users/NTUQ-RA/Documents/pojen/Qchem/bigdft-suite/build/install/include 
+#PKG_CONFIG_PATH=/mnt/c/Users/NTUQ-RA/Documents/pojen/Qchem/bigdft-suite/build/install/lib/pkgconfig:/mnt/c/Users/NTUQ-RA/Documents/pojen/Qchem/bigdft-suite/build/install/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
+#FC=gfortran
+#FCFLAGS=-O2 -fopenmp
+
+all: toy_model.x
+	${MAKE} toy_model.x
+
+toy_model.x: toy_model_Huang.f90
+#toy_model.x: toy_model_WYC_20240118.f90
+#toy_model.x: toy_model.f90
+	#$(FC) -o $@ $(FCFLAGS) $(INCLUDE) toy_model.f90 $(LIBRARY) 
+	#$(FC) -o $@ $(FCFLAGS) $(INCLUDE) toy_model_WYC_20240118.f90 $(LIBRARY) 
+	$(FC) -o $@ $(FCFLAGS) $(INCLUDE) toy_model_Huang.f90 $(LIBRARY) 
+
+.PHONY: clean
+clean :
+	rm -f toy_model.x toy_model.out toy_model.log

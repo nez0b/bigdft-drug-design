@@ -1,0 +1,56 @@
+'''
+This is the configuration file for the BigDFT installer
+for use on the computational molecular science team's Spring cluster
+with cuda. It must be compiled in interactive mode on the autumn computers.
+'''
+
+# List the module the this rcfile will build
+modules = ['spred', ]
+
+def env_configuration():
+    '''
+    Species the configure line for various autotools packages.
+    '''
+    env = {}
+    env["FC"] = "mpiifort"
+    #env["CC"] = "icc"
+    env["CC"] = "gcc"
+    #env["CXX"] = "icpc"
+    env["CXX"] = "g++"
+    env["FCFLAGS"] = "-O2 -qopenmp -fPIC"
+    env["FCFLAGS"] += ' -I"${MKLROOT}/include"'
+    env["CXXFLAGS"] = "-std=c++11"
+    env["CFLAGS"] = "-O2 -g -fPIC"
+    env["LIBS"] = "-ldl -lstdc++"
+    env["--with-ext-linalg"] = "-L${MKLROOT}/lib/intel64 -lmkl_intel_lp64 " \
+                               "-lmkl_intel_thread -lmkl_core -liomp5 " \
+                               " -lpthread -lm -ldl"
+    env["--enable-dynamic-libraries"] = None
+    env["--enable-cuda-gpu"] = None
+    #env["NVCC_FLAGS"] = "--compiler-options -fPIC -allow-unsupported-compiler"
+    env["NVCC_FLAGS"] = "--compiler-options -fPIC"
+    #env["NVCC_FLAGS"] += ' -I"/usr/local/cuda/include"'
+    #env["NVCC_FLAGS"] += ' -L"/home2/pojenwang/.conda/envs/torch/lib"'
+    #env["--with-cuda-path"] = "/home2/pojenwang/.conda/envs/torch/lib"
+
+    return " ".join(['"' + x + '=' + y + '"' if y is not None else
+                     '"' + x + '"' for x, y in env.items()])
+
+def ntpoly_configuration():
+    ''' 
+    For NTPoly we need to specify the cmake options.
+    ''' 
+    from os import getcwd, path
+
+    cmake_flags = {}
+    cmake_flags["CMAKE_Fortran_FLAGS_RELEASE"] = "-O2 -qopenmp -fPIC"
+    cmake_flags["CMAKE_Fortran_COMPILER"] = "mpiifort"
+    cmake_flags["CMAKE_PREFIX_PATH"] = path.join(getcwd(), "install")
+
+    return " ".join(['-D' + x + '="' + y + '"' for x, y in cmake_flags.items()])
+
+autogenargs = env_configuration()
+module_cmakeargs.update({
+    'ntpoly': ntpoly_configuration()
+})
+
