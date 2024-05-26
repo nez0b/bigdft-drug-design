@@ -204,8 +204,8 @@ program toy_model
   type(coulomb_operator)       :: pkernel
   type(paw_objects)            :: paw
   type(DFT_PSP_projectors)     :: nlpsp
-  type(ket)                    :: psi_it
-  type(orbital_basis)          :: psi_ob
+  type(ket)                    :: psi_it, psi_itv
+  type(orbital_basis)          :: psi_ob, psi_obv
   type(DFT_PSP_projector_iter) :: psp_it
   type(atomic_proj_matrix)     :: prj
   type(dictionary), pointer :: user_inputs, options, dict
@@ -256,13 +256,13 @@ program toy_model
   integer(kind=4)  :: OMP_get_max_threads, OMP_get_thread_num, OMP_get_num_threads
 
   character*32 con, tmp
-  integer :: ip ,iq ,ir ,is , ihpq, ihpqrs, istat, i,j,k, re_index1, re_index2
-  integer :: ipt,iqt,irt,ist, nhpq, nhpqrs
+  integer :: ip ,iq ,ir ,is ,ip_ ,iq_ , ihpq, ihpqrs, istat, i,j,k, re_index1, re_index2
+  integer :: ipt,iqt,irt,ist, nhpq, nhpqrs, increment
   real(kind=8) :: hpq,hpqrs
 
   ! PSolver
   ! hpqrs 
-  real(dp), dimension(:), allocatable :: rhopq, rhors
+  real(dp), dimension(:), allocatable :: rhopq, rhors, rhopqxphirrir
 
 !-------------------------------------------------------------------------------------------------------------------------------------
  
@@ -355,11 +355,11 @@ program toy_model
   ! inputs%norbv - number of virtual orbitals                          !
   ! orbsv%norb - number of total virtual orbitals (2*inputs%norbv)     !
   !--------------------------------------------------------------------!
-  nullify(orbsv%eval)
-  orbsv%eval = f_malloc_ptr(orbsv%norb*orbsv%nkpts,id='orbsv%eval')
   nvirtu = abs(inputs%norbv) ; nvirtd = nvirtu
   call orbitals_descriptors(iproc, nproc, nvirtu+nvirtd, nvirtu, nvirtd, &
                             orbs%nspin, orbs%nspinor, orbs%nkpts, orbs%kpts, orbs%kwgts, orbsv, LINEAR_PARTITION_NONE)
+  nullify(orbsv%eval)
+  orbsv%eval = f_malloc_ptr(orbsv%norb*orbsv%nkpts,id='orbsv%eval')
   call check_linear_and_create_Lzd(iproc,nproc,inputs%linear,Lzd,atoms,orbsv,inputs%nspin,atoms%astruct%rxyz)
   !--------------------------OLD　VERSION----------------------------!
   ! call readmywaves(iproc, "data/virtuals",     WF_FORMAT_PLAIN, orbsv, Lzd%Glr%d%n1, Lzd%Glr%d%n2, Lzd%Glr%d%n3, &
@@ -578,10 +578,10 @@ program toy_model
 
       if(j .le. orbs%norb) then
         call daub_to_isf(Lzd%Glr,wisf,  psi( (j-1)          *(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)+1) ,psir_j)
-        if(i .eq. 1) psirr(:,j-1) = psir_j(:)
+        ! if(i .eq. 1) psirr(:,j-1) = psir_j(:)
       else
         call daub_to_isf(Lzd%Glr,wisf, psiv( (j-1-orbs%norb)*(Lzd%Glr%wfd%nvctr_c+7*Lzd%Glr%wfd%nvctr_f)+1) ,psir_j)
-        if(i .eq. 1) psirr(:,j-1) = psir_j(:)
+        ! if(i .eq. 1) psirr(:,j-1) = psir_j(:)
       end if
 
       do k=1, Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)
@@ -793,12 +793,12 @@ program toy_model
     !-------------------
     !  virtual orbitals
     !-------------------
-    !---- PJW: fixed hpsi/psi_it mapping mismatch-----comment out below line 816-817ish
-    call orbital_basis_associate(psi_ob, orbs=orbsv, phis_wvl=psiv, Lzd=Lzd, id='nonlocalham')
-    psi_it = orbital_basis_iterator(psi_ob)
-    !-----------------------------------------------------------------
+    ! !---- PJW: fixed hpsi/psi_it mapping mismatch-----comment out below line 816-817ish
+    ! call orbital_basis_associate(psi_ob, orbs=orbsv, phis_wvl=psiv, Lzd=Lzd, id='nonlocalham')
+    ! psi_it = orbital_basis_iterator(psi_ob)
+    ! !-----------------------------------------------------------------
     allocate(hpsi(orbdimvir))
-    hpsi_ptr => ob_ket_map(hpsi,psi_it) ;
+    hpsi_ptr => ob_ket_map(hpsi,psi_itv) ;
     if(orbdimvir > 0) call f_zero(hpsi(1),orbdimvir)
 
 
@@ -813,16 +813,16 @@ program toy_model
     write(*,*) orbs%npsidim_orbs
     write(6,*)
 
-    !call orbital_basis_associate(psi_ob, orbs=orbsv, phis_wvl=psiv, Lzd=Lzd, id='nonlocalham')
-    !psi_it = orbital_basis_iterator(psi_ob)
-    loop_kpt_v: do while(ket_next_kpt(psi_it))
-      loop_lr_v: do while(ket_next_locreg(psi_it, ikpt=psi_it%ikpt))
+    call orbital_basis_associate(psi_obv, orbs=orbsv, phis_wvl=psiv, Lzd=Lzd, id='nonlocalham')
+    psi_itv = orbital_basis_iterator(psi_obv)
+    loop_kpt_v: do while(ket_next_kpt(psi_itv))
+      loop_lr_v: do while(ket_next_locreg(psi_itv, ikpt=psi_itv%ikpt))
         call DFT_PSP_projectors_iter_new(psp_it, nlpsp)
-        loop_proj_v: do while (DFT_PSP_projectors_iter_next(psp_it, ilr=psi_it%ilr, lr=psi_it%lr, glr=Lzd%glr))
-          call DFT_PSP_projectors_iter_ensure(psp_it, psi_it%kpoint, 0, nwarnings, Lzd%Glr)
-          loop_psi_kpt_v: do while(ket_next(psi_it, ikpt=psi_it%ikpt, ilr=psi_it%ilr))          
+        loop_proj_v: do while (DFT_PSP_projectors_iter_next(psp_it, ilr=psi_itv%ilr, lr=psi_itv%lr, glr=Lzd%glr))
+          call DFT_PSP_projectors_iter_ensure(psp_it, psi_itv%kpoint, 0, nwarnings, Lzd%Glr)
+          loop_psi_kpt_v: do while(ket_next(psi_itv, ikpt=psi_itv%ikpt, ilr=psi_itv%ilr))          
             call system('echo "09"')
-            call DFT_PSP_projectors_iter_apply(psp_it, psi_it, atoms, eproj, hpsi=hpsi)          
+            call DFT_PSP_projectors_iter_apply(psp_it, psi_itv, atoms, eproj, hpsi=hpsi)          
             call system('echo "10"')
 
 
@@ -861,6 +861,7 @@ program toy_model
       end do loop_lr_v
     end do loop_kpt_v
     call orbital_basis_release(psi_ob) ; deallocate(hpsi)
+    call orbital_basis_release(psi_obv)
 
     call system('echo "potential calculation (nonlocal) ... DONE"')
 
@@ -1109,36 +1110,55 @@ program toy_model
 
     open(05132021,file='hpqrs.out')
  
-    open(0513,file="hpqrs.inp")
-    nhpqrs=0
-    do 
-      read(0513,*,iostat=istat) tmp
-      if(istat .ne. 0) exit
-      nhpqrs=nhpqrs+1
-    end do
-    close(0513)
-    
+    allocate(rhopqxphirrir(Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)))
     allocate(rhopq(Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)))
     allocate(rhors(Lzd%Glr%nboxi(2,1)*Lzd%Glr%nboxi(2,2)*Lzd%Glr%nboxi(2,3)))
-    open(0513,file="hpqrs.inp")
-    do ihpqrs=1,nhpqrs
-      read(0513,*) ip,iq,ir,is
+    ! open(0513,file="hpqrs.inp")
 
-      ! Spin Orbital Index
-      ! Interleaved Spin Format
-      rhopq(:)=phirr(:,ip)*phirr(:,iq)
-      rhors(:)=phirr(:,ir)*phirr(:,is)
-      rhors(:)=rhors(:)/pkernel%mesh%volume_element
+    if(orbs%nspin .eq. 1) increment = 2
+    if(orbs%nspin .eq. 2) increment = 1 
 
-      write(*,*) "=================hererere===begin=========================="
-      call Electrostatic_Solver(pkernel,rhors)
-      write(*,*) "=================hererere===end=========================="
-      hpqrs=sum(rhopq(:)*rhors(:))
 
-      write( * ,'(4i4,f19.12)') ip,iq,ir,is, hpqrs
-      write(05132021,'(4(i4),f19.12)') ip,iq,ir,is, hpqrs
+    do ip=0,orbtot*2-1,increment 
+      do iq=ip,orbtot*2-1,2 
+        rhopq(:)=phirr(:,ip)*phirr(:,iq)
+        rhopq(:)=rhopq(:)/pkernel%mesh%volume_element
+        call Electrostatic_Solver(pkernel,rhopq)
+
+        ir=ip
+        rhopqxphirrir(:) = rhopq(:)*phirr(:,ir)
+        !$omp parallel default(private) shared(orbtot, ip, iq, ir, phirr, rhopqxphirrir)
+        !$omp do ordered
+        do is=iq,orbtot*2-1,2
+          hpqrs=sum(rhopqxphirrir(:)*phirr(:,is))
+    
+          !$omp ordered
+          write( * ,'(4i4,f19.12)') ip,iq,ir,is, hpqrs
+          write(05132021,'(4(i4),f19.12)') ip,iq,ir,is, hpqrs
+          !$omp end ordered
+        end do
+        !$omp end do
+        !$omp end parallel
+
+        do ir=ip+increment,orbtot*2-1,increment
+          rhopqxphirrir(:) = rhopq(:)*phirr(:,ir)
+          !$omp parallel default(private) shared(orbtot, ip, iq, ir, phirr, rhopqxphirrir)
+          !$omp do ordered
+          do is=ir,orbtot*2-1,2
+            ! rhors(:)=phirr(:,ir)*phirr(:,is)
+            hpqrs=sum(rhopqxphirrir(:)*phirr(:,is))
+            
+            !$omp ordered
+            write( * ,'(4i4,f19.12)') ip,iq,ir,is, hpqrs
+            write(05132021,'(4(i4),f19.12)') ip,iq,ir,is, hpqrs
+            !$omp end ordered
+          end do
+          !$omp end do
+          !$omp end parallel
+        end do
+      end do
     end do
-    close(0513)
+
     close(05132021)
     deallocate(psirr,rhopq,rhors)
     deallocate(phirr)
