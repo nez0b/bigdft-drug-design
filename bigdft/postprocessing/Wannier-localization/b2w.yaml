@@ -1,0 +1,36 @@
+n_wann: 45 # Need to be specified. Number of wannier functions(localized orbitals).
+name: "1b_2ASP" # Default is "default_sys". System name.
+
+# Default is true. Write the UNK files or not.
+# Writing UNK files is very time-consuming, so use it only
+# during the first run or when 'n_occ' or 'n_virt' values have changed."
+write_UNK: false
+
+n_iter: 200 # Default is 300. Number of iterations.
+n_occ: "all"  # Default is "all". Number of occupied orbs used to construct n_wann localized orbs.
+n_virt: 0 # Default is 0. Number of virtual orbs used to construct n_wann localized orbs.
+xyz: "posinp" # .xyz file name.
+input_yaml_name: "input" # input.yaml file name.
+
+# The first number in each line is the index(starting from 1) of the corresponding atom in the xyz file.
+# The symbols after ':' represent atomic orbitals or hybrid orbitals.
+# projections can also have the form of the examples in the Chapter 3 of
+# https://github.com/wannier-developers/wannier90/raw/v3.1.0/doc/compiled_docs/user_guide.pdf
+projections: |
+  5: s;sp3
+  6: s
+  7: s;sp2;pz
+  8: s;sp2;pz
+  13: s;sp3
+  14: s
+  15: s;sp2;pz
+  16: s;sp2;pz
+  30: s
+  39: s;sp2;pz
+  41: s;sp3
+  42: s;sp2;pz
+
+# Extra settings can also be specified here. Please see the following link for more settings:
+# https://github.com/wannier-developers/wannier90/raw/v3.1.0/doc/compiled_docs/user_guide.pdf
+additional_settings: |
+  # example_setting: 123
