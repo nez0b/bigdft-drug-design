@@ -69,6 +69,24 @@ python KS2wannier.py
 **`*_u.mat`**: The unitary matrix that transforms the KS orbitals to localized Wannier orbitals. It is written in row-major order, where each line contains the real and imaginary parts of a single matrix element.
 
 ---
+#### Generating Cube Files:
+
+After compiling `plot_wann_fun.f90` with the same `Makefile` as `toy_model.f90`, use the following command in the terminal:
+```bash
+./plot_wann_fun.x name n_plot
+```
+
+Where:
+- `name` is the prefix of your `_u.mat` file (without the `_u.mat` extension).
+- `n_plot` is the number of cube files you want to generate.
+
+**Example:**
+To generate the first 10 Wannier functions from the file `1b_2ASP_u.mat`, run:
+```bash
+./plot_wann_fun.x 1b_2ASP 10
+```
+
+---
 
 #### Required Files and Directory Structure:
 Make sure you are in the directory containing the following files and folders:
