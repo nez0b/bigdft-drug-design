@@ -81,7 +81,7 @@ Where:
 - `n_plot` is the number of cube files you want to generate.
 
 **Example:**
-To generate the first 10 Wannier functions from the file `1b_2ASP_u.mat`, run:
+To generate the cube files for the first 10 Wannier functions from the file `1b_2ASP_u.mat`, run:
 ```bash
 ./plot_wann_fun.x 1b_2ASP 10
 ```
