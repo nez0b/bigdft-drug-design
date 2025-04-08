@@ -294,7 +294,13 @@ program toy_model
   call lr_set(Lzd%Glr, iproc, GPU%OCLconv, .true., inputs%crmult, inputs%frmult, &
               Lzd%hgrids,atoms%astruct%rxyz,atoms,.true.,.false.)
   call orbitals_communicators(iproc,nproc,Lzd%Glr,orbs,comms)
-  call xc_init(xc, inputs%ixc, XC_ABINIT, inputs%nspin)
+
+  if (inputs%ixc < 0) then
+     call xc_init(xc, inputs%ixc, XC_MIXED, inputs%nspin)
+  else
+     call xc_init(xc, inputs%ixc, XC_ABINIT, inputs%nspin)
+  end if
+  
   call dpbox_set(dpcom,Lzd%Glr%mesh,xc,iproc,nproc,MPI_COMM_WORLD, inputs%SIC%approach, inputs%nspin)
 
 !-------------------------------------------------------------------------------------------------------------------------------------
