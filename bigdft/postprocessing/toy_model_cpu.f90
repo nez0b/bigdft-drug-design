@@ -244,7 +244,7 @@ program toy_model
 
   real(wp), dimension(:)  , allocatable :: tpsi, tpsi_o, tpsi_v, hpsi
   real(wp), dimension(:)  , allocatable :: tho
-  real(dp), dimension(:,:), allocatable :: E_local, E_nonlocal, E_kin
+  real(dp), dimension(:,:), allocatable :: E_local, E_nonlocal, E_kin, hpq_mat
   real(dp), dimension(:,:), allocatable :: output1, output2, output3
   real(dp)                              :: eproj, ektmp1, ektmp2, Enl
 
@@ -312,6 +312,7 @@ program toy_model
   allocate( E_kin(      orbtot,orbtot) ) ; E_kin=0.d0
   allocate( E_local(    orbtot,orbtot) ) ; E_local=0.d0
   allocate( E_nonlocal( orbtot,orbtot) ) ; E_nonlocal=0.d0
+  allocate( hpq_mat(    orbtot,orbtot) ) ; hpq_mat=0.d0
 
   allocate(orbs%eval(orbs%norb*orbs%nkpts)) ; call f_zero(orbs%eval)
   allocate(psi(  max(orbs%npsidim_orbs, orbs%npsidim_comp)+1 )) ; psi=0._gp
@@ -1010,39 +1011,31 @@ program toy_model
 
 ! ------------------------------------------------------------------------------------------------------------------------------------
   write(*,*)
+  hpq_mat(:,:) = E_kin(:,:)+E_local(:,:)+E_nonlocal(:,:)
 
     ! Output hpq Index & hpq
     open(05132021,file="hpq.out")
 
-    ! Read hpq Index input file
-    open(0513,file="hpq.inp")
-    nhpq=0
-    do 
-      read(0513,*,iostat=istat) tmp
-      if(istat .ne. 0) exit
-      nhpq=nhpq+1
+    do ip_=0,orbtot*2-1
+      do iq_=ip_,orbtot*2-1,2
+        ipt=ip_
+        iqt=iq_
+        if(orbs%nspin .eq. 1) then
+        ip=int(ip_/2)
+        iq=int(iq_/2)
+        else if(orbs%nspin .eq. 2) then
+        ip=ip_
+        iq=iq_
+        print *, "Error: UHF not implemented. Code: 0000"
+        stop
+        end if
+
+        ! hpq=output1(ip,iq)+output2(ip,iq)+output3(ip,iq)
+
+        write(*,'(2i4,f19.12)') ipt,iqt,hpq(ip+1, iq+1)
+        write(05132021,'(2i4,f19.12)') ipt,iqt,hpq(ip+1, iq+1)
+      end do
     end do
-    close(0513)
-
-    open(0513,file="hpq.inp")
-    do ihpq=1,nhpq
-      read(0513,*) ip,iq
-      ipt=ip
-      iqt=iq
-      if(orbs%nspin .eq. 1) then
-        ip=int(ip/2)
-        iq=int(iq/2)
-      else if(orbs%nspin .eq. 2) then
-        ip=ip
-        iq=iq
-      end if
-
-      hpq=output1(ip,iq)+output2(ip,iq)+output3(ip,iq)
-
-      write(*,'(2i4,f19.12)') ipt,iqt,hpq
-      write(05132021,'(2i4,f19.12)') ipt,iqt,hpq
-    end do
-    close(0513)
     close(05132021)
 
   write(*,*)
