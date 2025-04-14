@@ -61,6 +61,7 @@ if not n_wann:
 
 n_iter = settings.get("n_iter", 300)
 n_occ = settings.get("n_occ", "all")
+n_virt_tot = settings.get("n_virt_tot", 0)
 n_virt = settings.get("n_virt", 0)
 name = settings.get("name", "default_sys")
 xyz = settings.get("xyz", "posinp")
@@ -138,7 +139,7 @@ win3 = """
 inter = f"""{name}                  # Name of the .win file
 form                  # Format : cube or etsf
 F  F   {n_occ}             #  Use resolution of the identity (ROI), write ROI states, No. of occupied orbitals
-F    20    {n_virt}          # Pre-check, n_virt_tot, n_virt
+F    {n_virt_tot}    {n_virt}          # Pre-check, n_virt_tot, n_virt
 {write_UNK}    F    F    F     # Write_UNKp.s, write_spherical_harmonics, write_angular_parts,  write_radial_parts
   {int(grid_nums[0])*2}  {int(grid_nums[1])*2}  {int(grid_nums[2])*2}       # Number of points for each axis in the cubic  BigDFT representation (information needed by Wannier90)
  data"""
