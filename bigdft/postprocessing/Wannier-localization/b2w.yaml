@@ -9,6 +9,7 @@ write_UNK: false
 n_iter: 200 # Default is 300. Number of iterations.
 n_occ: "all"  # Default is "all". Number of occupied orbs used to construct n_wann localized orbs.
 n_virt: 0 # Default is 0. Number of virtual orbs used to construct n_wann localized orbs.
+n_virt_tot: 0
 xyz: "posinp" # .xyz file name.
 input_yaml_name: "input" # input.yaml file name.
 
