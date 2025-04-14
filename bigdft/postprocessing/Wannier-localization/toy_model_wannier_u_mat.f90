@@ -208,7 +208,7 @@ program toy_model
   type(orbital_basis)          :: psi_ob, psi_obv
   type(DFT_PSP_projector_iter) :: psp_it
   type(atomic_proj_matrix)     :: prj
-  type(dictionary), pointer :: user_inputs, options, dict
+  type(dictionary), pointer :: user_inputs, options, dict, dict2
   type(domain_renamed) :: dom
   type(f_reference_counter) :: pot_ref_count
 
@@ -1032,9 +1032,13 @@ program toy_model
 
   allocate(u_matrix(orbtot, orbtot)) ; u_matrix=0._wp
 
-  call get_u_mat_filename(u_mat_filename)
+  call dict_init(dict2)
+  call merge_input_file_to_dict(dict2, 'b2w.yaml', bigdft_mpi)
+  u_mat_filename = dict2 // "name"
+  call dict_free(dict2)
+  ! call get_u_mat_filename(u_mat_filename)
 
-  open(1111,file=trim(u_mat_filename))
+  open(1111,file=trim(u_mat_filename) // "_u.mat")
   do i=1,4
     read(1111,*)
   end do
@@ -1196,62 +1200,6 @@ program toy_model
     close(6)  
 
 stop
-
-contains
-  subroutine get_u_mat_filename(filename)
-    implicit none
-
-    character(len=*), intent(out) :: filename
-    integer :: num_args, ios, count
-    character(len=256) :: arg_value, line
-    integer, parameter :: unit_list = 10
-    character(len=256) :: temp_list_filename
-
-    ! Define the temporary file to hold the list of files.
-    temp_list_filename = "temp_file_list.txt"
-
-    ! Get the number of command line arguments.
-    num_args = command_argument_count()
-
-    if (num_args >= 1) then
-      ! Get the first command line argument and construct the filename.
-      call get_command_argument(1, arg_value)
-      filename = trim(arg_value) // "_u.mat"
-    else
-      ! No command line argument provided.
-      ! Use a system call to list files matching *_u.mat into a temporary file.
-      call system("ls *_u.mat > temp_file_list.txt")
-
-      ! Open the temporary file and count matching file names.
-      open(unit=unit_list, file=temp_list_filename, status="old", action="read", iostat=ios)
-      if (ios /= 0) then
-          print *, "Error: Unable to open temporary file list: ", trim(temp_list_filename)
-          stop 1
-      end if
-
-      count = 0
-      filename = ""  ! Initialize filename
-      do
-          read(unit_list, '(A)', iostat=ios) line
-          if (ios /= 0) exit  ! End of file or error
-          if (len_trim(line) > 0) then
-            count = count + 1
-            if (count == 1) then
-                filename = trim(line)
-            end if
-          end if
-      end do
-      close(unit_list)
-
-      ! Check that there is exactly one matching file.
-      if (count /= 1) then
-          print *, "Error: Found ", count, " files matching the pattern *_u.mat."
-          stop 1
-      end if
-    end if
-
-  end subroutine get_u_mat_filename
-
 
 end program toy_model
 
