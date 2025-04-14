@@ -1,10 +1,42 @@
-### Important Configuration: Executable Paths
+### Purpose
 
-Please edit the following two lines in `KS2wannier.py` to point to the actual paths of the `wannier90.x` and `BigDFT2Wannier` executables in your system:
-```python
-wann_executable = "/data/wannier90-3.1.0/wannier90.x"
-b2w_executable = "/data/bigdft/bigdft-suite/build/bigdft/src/BigDFT2Wannier"
-```
+`KS2wannier.py` prepares the necessary input files for both `BigDFT2Wannier` and `wannier90.x`, executes these tools, and produces the unitary matrix file (`*_u.mat`) containing the Wannier localization transformation.
+
+`toy_model_wannier_u_mat.f90` reads the `*_u.mat` file, constructs the Wannier-localized orbitals, and calculates the one- and two-electron integrals for these orbitals. The output files are:
+- `hpq_wannier.out` (one-electron integrals)
+- `hpqrs_wannier.out` (two-electron integrals)
+
+---
+
+### How to use
+
+#### One-Time Setup (Do This Once)
+1. Install `wannier90.x`.
+2. Install `BigDFT2Wannier`.
+3. Complile `toy_model_wannier_u_mat.f90` and `plot_wann_fun.f90` using the same Makefile of the regular `toy_model.f90`.
+4. Run `python -m pip install pyyaml` in the correct environment.
+5. In `KS2wannier.py`, modify the following lines to point to the actual paths of the `wannier90.x` and `BigDFT2Wannier` executables on your system:
+   ```python
+   wann_executable = "/data/wannier90-3.1.0/wannier90.x"
+   b2w_executable = "/data/bigdft/bigdft-suite/build/bigdft/src/BigDFT2Wannier"
+   ```
+
+#### Run-Time Preparation (Do for Every Run)
+1. Make sure the following files and folders are in your current working folder:
+   - `*.xyz`
+   - `input.yaml`
+   - `log.yaml`
+   - `data/` folder containing the wavefunction files.
+   - `b2w.yaml`
+   - `KS2wannier.py`
+   - `toy_model_wannier_u_mat.x`
+   - `plot_wann_fun.x`
+2. Modify `b2w.yaml`
+3. Modify `input.yaml`
+
+#### Execution
+1. `python KS2wannier.py`
+2. `./toy_model_wannier_u_mat.x`
 
 ---
 
@@ -52,26 +84,26 @@ make
 
 ---
 
-#### Usage:
-To run the script directly from the command line:
-```bash
-python KS2wannier.py
-```
+### Modifying `b2w.yaml`
+   - `n_wann`: The number of Wannier-localized orbitals you want to generate. This should not be greater than `n_occ+n_virt`.
+   - `name`: Used to name the output files.
+   - `n_occ`: **Currently only supports "all"**. The number of occupied orbitals used to construct Wannier-localized orbitals.
+   - `n_virt`: **Currently only supports 0**. The number of virtual orbitals used to construct Wannier-localized orbitals.
+   - `xyz`: .xyz file name
+   - `input_yaml_name`: input.yaml file name.
+   - `projections`: The specified projections. Note that the number of projections should not be less than n_wann, and if it is greater than n_wann, it needs additional settings. Please check the comments in b2w.yaml to learn more about the format.
 
 ---
 
-#### Purpose:
-`KS2wannier.py` prepares the necessary input files for both `BigDFT2Wannier` and `wannier90.x`, and also executes both `BigDFT2Wannier` and `wannier90.x`.
+### Modifying `input.yaml`
+   - Set `nvirt` to 0.
+   - Set `norbv` to the number of virtual orbitals you want to use to calculate the one- and two- electron integrals.
 
 ---
 
-#### Outputs:
-**`*_u.mat`**: The unitary matrix that transforms the KS orbitals to localized Wannier orbitals. It is written in row-major order, where each line contains the real and imaginary parts of a single matrix element.
-
----
 #### Generating Cube Files:
 
-After compiling `plot_wann_fun.f90` with the same `Makefile` as `toy_model.f90`, use the following command in the terminal:
+After compiling `plot_wann_fun.f90` with the same `Makefile` as for `toy_model.f90`, use the following command in the terminal:
 ```bash
 ./plot_wann_fun.x name n_plot
 ```
@@ -84,27 +116,6 @@ Where:
 To generate the cube files for the first 10 Wannier functions from the file `1b_2ASP_u.mat`, run:
 ```bash
 ./plot_wann_fun.x 1b_2ASP 10
-```
-
----
-
-#### Required Files and Directory Structure:
-Make sure you are in the directory containing the following files and folders:
-1. **XYZ file**
-2. **`input.yaml` file**
-3. **`data/` folder** that contains wavefunction files.
-4. **`b2w.yaml` file**
-
-**Additional Requirement (Conditional):**
-- If `n_occ: "all"` is set in `b2w.yaml`, you must also include the following file:
-   - **`log.yaml`** that generated during the execution of BigDFT.
-
----
-
-#### Dependencies:
-If the `yaml` module is not installed, run the following command:
-```bash
-python -m pip install pyyaml
 ```
 
 ---
