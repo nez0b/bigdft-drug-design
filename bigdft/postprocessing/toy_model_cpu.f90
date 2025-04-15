@@ -1032,8 +1032,8 @@ program toy_model
 
         ! hpq=output1(ip,iq)+output2(ip,iq)+output3(ip,iq)
 
-        write(*,'(2i4,f19.12)') ipt,iqt,hpq(ip+1, iq+1)
-        write(05132021,'(2i4,f19.12)') ipt,iqt,hpq(ip+1, iq+1)
+        write(*,'(2i4,f19.12)') ipt,iqt,hpq_mat(ip+1, iq+1)
+        write(05132021,'(2i4,f19.12)') ipt,iqt,hpq_mat(ip+1, iq+1)
       end do
     end do
     close(05132021)
