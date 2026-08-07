@@ -1,0 +1,47 @@
+[
+  {
+    "name": "N2 CAS[4,4] (MP2 sel. 40%)",
+    "n_spatial": 4,
+    "n_alpha": 2,
+    "n_beta": 2,
+    "qee_qubits": 6,
+    "qee_default": 1248,
+    "qee_single": 664,
+    "jw_qubits": 8,
+    "jw_terms": 185
+  },
+  {
+    "name": "N2 CAS[6,5] (MP2 sel. 10%)",
+    "n_spatial": 5,
+    "n_alpha": 3,
+    "n_beta": 3,
+    "qee_qubits": 8,
+    "qee_default": 22147,
+    "qee_single": 13728,
+    "jw_qubits": 10,
+    "jw_terms": 420
+  },
+  {
+    "name": "N2 CAS(10,10)",
+    "n_spatial": 10,
+    "n_alpha": 5,
+    "n_beta": 5,
+    "qee_qubits": 16,
+    "qee_default": 1187204840,
+    "qee_single": null,
+    "jw_qubits": 20,
+    "jw_terms": 7031
+  },
+  {
+    "name": "109Asp (est.)",
+    "n_spatial": 132,
+    "n_alpha": 122,
+    "n_beta": 122,
+    "qee_qubits": 98,
+    "qee_default": null,
+    "qee_single": null,
+    "jw_qubits": 264,
+    "jw_terms": 607191552,
+    "estimate": true
+  }
+]

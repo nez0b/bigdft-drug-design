@@ -1,0 +1,30 @@
+{
+  "system": {
+    "name": "ligand 109 + aspartate",
+    "atoms": 70,
+    "spatial_orbitals": 132,
+    "occupied_spatial_orbitals": 122,
+    "virtual_spatial_orbitals": 10
+  },
+  "complete_opt_ks_run": {
+    "filename": "109AspKS.hpqrs",
+    "line_count": 38531031,
+    "bytes": 1387117116,
+    "sha256": "6717effdaf201c34f7b28708d6587fc335c887365aca95af16316d6cf8d2f595",
+    "vendored": false
+  },
+  "archived_truncated_run": {
+    "filename": "109Asp.hpqrs",
+    "line_count": 100000,
+    "bytes": 3600000,
+    "sha256": "6e37d0865d6adf0eeb7a4bd169e3b08a79cc77b9eb59999442568294ed18d3d2",
+    "vendored": false,
+    "warning": "This is a different run from the complete opt-KS file; values must not be combined."
+  },
+  "one_body_archive": {
+    "filename": "hpq.npy",
+    "bytes": 557696,
+    "sha256": "5093d8e05633925986ac64ab9e771899ea28556115b71e2ef007757da520613e",
+    "vendored": false
+  }
+}

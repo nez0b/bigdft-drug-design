@@ -1,0 +1,82 @@
+'''
+This is the configuration file for the BigDFT installer
+for use on Mac OS X. We prefer to use GCC instead of clang.
+You can install GCC using homebrew.
+'''
+
+conditions.add("testing")
+
+# List the module the this rcfile will build
+# (stop at 'bigdft' -- that is all toy_model.f90 needs; skip spred on top)
+moduleset = 'bigdft'
+modules = ['bigdft', ]
+
+def get_gnu():
+    '''
+    Figure out which version of gcc we can use
+    '''
+    from shutil import which
+    version = "13"
+    check_c = which("gcc-" + version)
+    check_cpp = which("g++-" + version)
+    if check_c is None or check_cpp is None:
+        raise ValueError("gcc@13 is required for the verified build")
+    return "gcc-" + version, "g++-" + version
+
+def env_configuration():
+    '''
+    Species the configure line for various autotools packages.
+    '''
+    gcc, gpp = get_gnu()
+    env = {}
+    env["FC"] = "mpifort"
+    env["CC"] = gcc
+    env["CXX"] = gpp
+    # -fallow-argument-mismatch + -ffree-line-length-none are required to build the
+    # 2019-2022-era Fortran sources with gfortran >= 10 (mismatched MPI arg prototypes,
+    # long generated lines). -std=legacy relaxes further deprecations.
+    # -finit-local-zero: the 2024 sources contain latent uninitialised-local reads
+    # (the Davidson virtual solver produced NaN gradients NONDETERMINISTICALLY on
+    # gfortran/macOS); Intel compilers on the original cluster effectively zeroed
+    # such locals, gfortran does not. Zero-initialising restores the cluster behaviour.
+    env["FCFLAGS"] = "-O2 -g -fopenmp -mtune=native -fallow-argument-mismatch -ffree-line-length-none -std=legacy -finit-local-zero"
+    env["--with-ext-linalg"] = "-framework Accelerate"
+
+    return " ".join([x + '=' + '"' + y + '"' for x, y in env.items()])
+
+autogenargs = env_configuration()
+
+def ntpoly_configuration():
+    '''
+    For NTPoly we need to specify the cmake options.
+    '''
+    from os import getcwd, path
+    from os.path import join
+
+    cmake_flags = {}
+    # NOTE: ntpoly is cmake-built, so it does NOT inherit env_configuration()'s FCFLAGS.
+    # The gfortran>=10 compat flags must be repeated here or its MPI calls fail to compile.
+    cmake_flags["CMAKE_Fortran_FLAGS_RELEASE"] = "-O2 -fopenmp -mtune=native -fallow-argument-mismatch -ffree-line-length-none"
+    cmake_flags["FORTRAN_ONLY"] = "YES"
+    cmake_flags["CMAKE_Fortran_COMPILER"] = "mpifort"
+    cmake_flags["CMAKE_PREFIX_PATH"] = path.join(getcwd(), "install")
+    # cmake >= 4 removed compat with cmake_minimum_required(<3.5); ntpoly asks for an
+    # old minimum. This flag lets the old CMakeLists configure under Homebrew cmake 4.x.
+    cmake_flags["CMAKE_POLICY_VERSION_MINIMUM"] = "3.5"
+
+    return " ".join(['-D' + x + '="' + y + '"' for x, y in cmake_flags.items()])
+
+# For NTPoly
+module_cmakeargs.update({
+    'ntpoly': ntpoly_configuration()
+})
+
+def python_configuration():
+    '''
+    Species the configure line for various python packages.
+    '''
+    return ""
+
+module_autogenargs.update({
+   'pyfutile': python_configuration(),
+})

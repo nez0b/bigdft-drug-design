@@ -1,0 +1,115 @@
+{
+  "curves": {
+    "wavelet": {
+      "label": "Wavelet (BigDFT valence)",
+      "R": [
+        0.2,
+        0.6,
+        0.8,
+        0.8976,
+        1.0976,
+        1.2976,
+        1.4976,
+        1.6976
+      ],
+      "E": [
+        16.207704396451575,
+        -16.915875863084167,
+        -19.044487998614823,
+        -19.388825698678474,
+        -19.572558213705285,
+        -19.50410148296512,
+        -19.43318581646175,
+        -19.368908112603204
+      ]
+    },
+    "matched": {
+      "label": "Valence-matched GTH-PBE / gth-dzvp",
+      "R": [
+        0.2,
+        0.6,
+        0.8,
+        0.8976,
+        1.0976,
+        1.2976,
+        1.4976,
+        1.6976
+      ],
+      "E": [
+        19.97848048586942,
+        -16.46293717772397,
+        -18.904404070232996,
+        -19.305379981038698,
+        -19.535357381051647,
+        -19.48377421996745,
+        -19.42265791857902,
+        -19.342665364899112
+      ]
+    },
+    "allelectron": {
+      "label": "All-electron / cc-pVDZ",
+      "R": [
+        0.2,
+        0.6,
+        0.8,
+        0.8976,
+        1.0976,
+        1.2976,
+        1.4976,
+        1.6976
+      ],
+      "E": [
+        -59.02591550541199,
+        -106.06985959552988,
+        -108.44980369419244,
+        -108.83351590631412,
+        -109.04802808738334,
+        -108.99979749115325,
+        -108.92415399615152,
+        -108.84261058624759
+      ]
+    }
+  },
+  "spectroscopy": {
+    "wavelet": {
+      "r_e": 1.0874823902614354,
+      "omega_e": 2548.501102770064
+    },
+    "matched": {
+      "r_e": 1.1065584743783736,
+      "omega_e": 2452.5258293042425
+    },
+    "allelectron": {
+      "r_e": 1.1050318391610876,
+      "omega_e": 2358.451403884003
+    }
+  },
+  "experiment": {
+    "r_e": 1.09768,
+    "omega_e": 2358.57
+  },
+  "methodology": {
+    "wavelet": {
+      "total_explicit_electrons": 10,
+      "active_space": "CAS(10e,10o)",
+      "orbital_source": "BigDFT PBE Kohn-Sham",
+      "pseudopotential": "HGH-K/PBE"
+    },
+    "matched": {
+      "total_explicit_electrons": 10,
+      "active_space": "CAS(10e,10o)",
+      "orbital_source": "PySCF RHF",
+      "pseudopotential": "GTH-PBE",
+      "basis": "gth-dzvp"
+    },
+    "allelectron": {
+      "total_electrons": 14,
+      "frozen_core_electrons": 4,
+      "frozen_core_spatial_orbitals": 2,
+      "active_space": "CAS(10e,10o)",
+      "orbital_source": "PySCF RHF",
+      "basis": "cc-pVDZ"
+    },
+    "comparison": "Shift every curve to its own minimum; compare shape, r_e, and omega_e. Do not subtract absolute energies across different pseudopotentials or between pseudopotential and all-electron calculations."
+  }
+}

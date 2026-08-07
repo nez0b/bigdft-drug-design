@@ -1,0 +1,26 @@
+# Apple-Silicon Makefile for the BigDFT toy_model (gfortran-13 + Accelerate + Open MPI).
+# Equivalent to build_toy_mac.sh. Run with:  OMPI_FC=gfortran-13 OMPI_CC=gcc-13 make -f Makefile.mac
+#
+# Original cluster Makefile targeted Linux + Intel mpiifort + MKL; this drops the Intel/Linux-only
+# bits (-lmkl_*, -liomp5, -lrt, -Wl,--no-as-needed, -lfmalloc-1) and uses Accelerate for BLAS/LAPACK.
+
+BigDFT  ?= ../local/install
+SOURCE  ?= ../postprocessing/toy_model_cpu.f90
+INCLUDE = -I$(BigDFT)/include -I$(BigDFT)/include/futile
+LIBRARY = -L$(BigDFT)/lib \
+          -lbigdft-1 -labinit -lxcf90 -lxc -lGaIn -lPSolver-1 -lCheSS-1 -lfutile-1 \
+          -latlab-1 -lyaml -ldicts -lNTPoly -lorbs \
+          -framework Accelerate -lstdc++
+
+FC      = mpifort
+FCFLAGS = -O2 -fopenmp -fallow-argument-mismatch -ffree-line-length-none -fbacktrace
+LDFLAGS = -Wl,-rpath,$(abspath $(BigDFT)/lib)
+
+toy_model_mac.x: $(SOURCE)
+	$(FC) -o $@ $(FCFLAGS) $(INCLUDE) $(SOURCE) $(LIBRARY) $(LDFLAGS)
+	@old=$$(otool -L $@ | awk '/libyaml-[0-9.]*\.dylib/{print $$1; exit}'); \
+	case "$$old" in /*) install_name_tool -change "$$old" @rpath/libyaml-0.2.dylib $@ ;; esac
+
+.PHONY: clean
+clean:
+	rm -f toy_model_mac.x

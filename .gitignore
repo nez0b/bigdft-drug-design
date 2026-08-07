@@ -30,6 +30,24 @@
 *.exe
 *.out
 *.app
+*.x
+
+# Integral files are scientific inputs, not compiler output.
+!data/**/*.out
 
 .DS_Store
 */.DS_Store
+
+# Local environments, caches, builds, and monitored-run logs
+.artifacts/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.log
+debug/
+build/
+dist/
+scratch/
+scan_runs/
+bigdft/local/

@@ -1,0 +1,28 @@
+{
+  "status": "unresolved_negative_diagnostic",
+  "system": {
+    "molecule": "N2",
+    "bond_length_angstrom": 1.0,
+    "basis": "6-31g",
+    "active_electrons": 6,
+    "active_spatial_orbitals": 8,
+    "ansatz": "Hartree-Fock"
+  },
+  "energies_ha": {
+    "pyscf_casci_total": -108.899689,
+    "qiskit_addon_sqd_total": -108.897334,
+    "qiskit_addon_sqd_error_mha": 2.355,
+    "quri_qsci_total": -112.878459,
+    "quri_qsci_error_mha": 3978.770
+  },
+  "interpretation": {
+    "qiskit_addon_sqd": "Reference implementation approached CASCI in the archived run.",
+    "quri_qsci": "Energy stayed constant as the requested subspace changed and remained about 3.979 Ha from CASCI; the result is not validated.",
+    "constant_term_correction": "The archived report called an approximately -97.04 Ha core/frozen-orbital constant 'nuclear repulsion'. That label is incorrect: the molecular nuclear repulsion reported in the same diagnostic was approximately +25.93 Ha."
+  },
+  "provenance": {
+    "source_report": "Qchem/QSCI/QSCI_qqbit/quri-qsci-verification/verification_analysis_report.md",
+    "reproduced_in_locked_environment": false,
+    "included_as_successful_result": false
+  }
+}

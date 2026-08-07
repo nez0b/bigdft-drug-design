@@ -1,0 +1,10 @@
+--- a/bigdft/src/modules/interfaces.f90
++++ b/bigdft/src/modules/interfaces.f90
+@@
+-         type(gaussian_basis), intent(out) :: G
++         ! Must match init/gauprod.f90, which reads G%rxyz as a built guard.
++         type(gaussian_basis), intent(inout) :: G
+@@
+-       type(coulomb_operator), intent(in), optional :: pkernel
++       ! Must match the implementation in hpsiortho.f90.
++       type(coulomb_operator), intent(inout), optional :: pkernel

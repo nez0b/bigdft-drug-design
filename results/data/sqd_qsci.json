@@ -1,0 +1,94 @@
+{
+  "system": "N2 BigDFT wavelet integrals",
+  "active_space": {
+    "electrons": 6,
+    "spatial_orbitals": 6,
+    "qubits_jordan_wigner": 12,
+    "determinants": 400
+  },
+  "sampler": {
+    "type": "classical_fci_oracle",
+    "seed": 2,
+    "note": "Exact PySCF FCI amplitudes used as a classical sampler oracle; algorithm validation only, not quantum-hardware data."
+  },
+  "reference_energy_ha": -31.617439026054257,
+  "chemical_accuracy_mha": 1.6,
+  "rows": [
+    {
+      "shots": 5000,
+      "unique_configurations": 25,
+      "qsci_energy_ha": -31.611878499632724,
+      "qsci_error_mha": 5.560526421533041,
+      "sqd_energy_ha": -31.611878499632724,
+      "sqd_error_mha": 5.560526421533041,
+      "qsci_sqd_abs_difference_ha": 0.0,
+      "sqd_best_energy_by_iteration_ha": [
+        -31.611878499632724,
+        -31.611878499632724,
+        -31.611878499632724
+      ],
+      "sqd_largest_batch_by_iteration": [
+        25,
+        25,
+        25
+      ]
+    },
+    {
+      "shots": 20000,
+      "unique_configurations": 36,
+      "qsci_energy_ha": -31.611881224326822,
+      "qsci_error_mha": 5.557801727434253,
+      "sqd_energy_ha": -31.611881224326822,
+      "sqd_error_mha": 5.557801727434253,
+      "qsci_sqd_abs_difference_ha": 0.0,
+      "sqd_best_energy_by_iteration_ha": [
+        -31.611881224326822,
+        -31.611881224326822,
+        -31.611881224326822
+      ],
+      "sqd_largest_batch_by_iteration": [
+        36,
+        36,
+        36
+      ]
+    },
+    {
+      "shots": 100000,
+      "unique_configurations": 40,
+      "qsci_energy_ha": -31.61590256498812,
+      "qsci_error_mha": 1.5364610661379174,
+      "sqd_energy_ha": -31.61590256498812,
+      "sqd_error_mha": 1.5364610661379174,
+      "qsci_sqd_abs_difference_ha": 0.0,
+      "sqd_best_energy_by_iteration_ha": [
+        -31.61590256498812,
+        -31.61590256498812,
+        -31.61590256498812
+      ],
+      "sqd_largest_batch_by_iteration": [
+        40,
+        40,
+        40
+      ]
+    },
+    {
+      "shots": 500000,
+      "unique_configurations": 43,
+      "qsci_energy_ha": -31.617254661026394,
+      "qsci_error_mha": 0.18436502786300935,
+      "sqd_energy_ha": -31.617254661026394,
+      "sqd_error_mha": 0.18436502786300935,
+      "qsci_sqd_abs_difference_ha": 0.0,
+      "sqd_best_energy_by_iteration_ha": [
+        -31.617254661026394,
+        -31.617254661026394,
+        -31.617254661026394
+      ],
+      "sqd_largest_batch_by_iteration": [
+        43,
+        43,
+        43
+      ]
+    }
+  ]
+}
